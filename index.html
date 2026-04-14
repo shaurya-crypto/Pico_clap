@@ -19,13 +19,11 @@
         let isListening = false;
         let lastClapTime = 0;
 
-        // THIS IS YOUR SECRET CLOUD CHANNEL
         const DWEET_URL = "https://dweet.io/dweet/for/shaurya-secret-clap-999?clap=1";
 
         document.getElementById('startBtn').addEventListener('click', async () => {
             if (isListening) return;
             try {
-                // Vercel is HTTPS, so the browser WILL allow this!
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 const source = audioCtx.createMediaStreamSource(stream);
@@ -47,19 +45,30 @@
                     for(let i = 0; i < dataArray.length; i++) sum += dataArray[i];
                     let volume = sum / dataArray.length;
 
-                    // CLAP THRESHOLD (Adjust if needed)
                     if (volume > 70 && (Date.now() - lastClapTime) > 1500) {
                         lastClapTime = Date.now();
                         status.innerText = "💥 CLAP! Sending to Cloud...";
                         status.style.color = "#ff453a";
 
-                        // Send the signal to the Dweet.io Cloud
+                        // --- THE ARMOR FIX IS HERE ---
                         fetch(DWEET_URL)
                             .then(() => {
+                                // If successful, reset back to listening
                                 setTimeout(() => {
                                     status.innerText = "🎧 Mic Active! Clap loudly!";
                                     status.style.color = "#32d74b";
                                 }, 1000);
+                            })
+                            .catch((error) => {
+                                // If blocked, DON'T CRASH! Just show a warning and keep going.
+                                console.error("Cloud blocked the signal:", error);
+                                status.innerText = "⚠️ Network Blocked! Turn off Adblocker.";
+                                status.style.color = "#ffaa00";
+                                
+                                setTimeout(() => {
+                                    status.innerText = "🎧 Mic Active! Clap loudly!";
+                                    status.style.color = "#32d74b";
+                                }, 2000);
                             });
                     }
                 }
