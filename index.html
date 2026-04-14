@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cloud Clap Sensor</title>
+    <style>
+        body { background-color: #111; color: white; font-family: sans-serif; text-align: center; padding-top: 50px; }
+        #startBtn { padding: 25px; font-size: 20px; font-weight: bold; background: #0a84ff; color: white; border: none; border-radius: 12px; cursor: pointer; }
+        #status { margin-top: 30px; font-size: 18px; color: #888; }
+    </style>
+</head>
+<body>
+    <h2>Cloud-Connected Clap</h2>
+    <button id="startBtn">START MIC</button>
+    <div id="status">Waiting to start...</div>
+
+    <script>
+        const status = document.getElementById('status');
+        let isListening = false;
+        let lastClapTime = 0;
+
+        // THIS IS YOUR SECRET CLOUD CHANNEL
+        const DWEET_URL = "https://dweet.io/dweet/for/shaurya-secret-clap-999?clap=1";
+
+        document.getElementById('startBtn').addEventListener('click', async () => {
+            if (isListening) return;
+            try {
+                // Vercel is HTTPS, so the browser WILL allow this!
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioCtx.createMediaStreamSource(stream);
+                const analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 256; 
+                source.connect(analyser);
+                const dataArray = new Uint8Array(analyser.frequencyBinCount);
+                
+                status.innerText = "🎧 Mic Active! Clap loudly!";
+                status.style.color = "#32d74b";
+                document.getElementById('startBtn').style.display = "none";
+                isListening = true;
+
+                function analyzeAudio() {
+                    requestAnimationFrame(analyzeAudio);
+                    analyser.getByteFrequencyData(dataArray);
+                    
+                    let sum = 0;
+                    for(let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+                    let volume = sum / dataArray.length;
+
+                    // CLAP THRESHOLD (Adjust if needed)
+                    if (volume > 70 && (Date.now() - lastClapTime) > 1500) {
+                        lastClapTime = Date.now();
+                        status.innerText = "💥 CLAP! Sending to Cloud...";
+                        status.style.color = "#ff453a";
+
+                        // Send the signal to the Dweet.io Cloud
+                        fetch(DWEET_URL)
+                            .then(() => {
+                                setTimeout(() => {
+                                    status.innerText = "🎧 Mic Active! Clap loudly!";
+                                    status.style.color = "#32d74b";
+                                }, 1000);
+                            });
+                    }
+                }
+                analyzeAudio();
+            } catch (err) {
+                status.innerText = "ERROR: Mic still blocked!";
+                status.style.color = "#ff453a";
+            }
+        });
+    </script>
+</body>
+</html>
